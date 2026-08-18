@@ -181,12 +181,13 @@ textarea.form-input{resize:vertical;min-height:72px;line-height:1.5}
 <div id="s-main" class="screen active">
   <div class="topbar no-print">
     <div>
-      <div class="page-title">Dpto. Personas · Dashboard Onboarding</div>
+      <div class="page-title" id="dashboard-title">Dashboard Onboarding</div>
       <div class="page-sub" id="main-sub"></div>
     </div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="newPerson()">+ Nueva incorporación</button>
       <button class="btn" onclick="manageDptos()">Departamentos</button>
+      <button class="btn" onclick="openConfig()">⚙ Configuración</button>
     </div>
   </div>
   <div class="summary-grid" id="summary-cards"></div>
@@ -347,6 +348,64 @@ textarea.form-input{resize:vertical;min-height:72px;line-height:1.5}
   </div>
 </div>
 
+<!-- Modal configuración -->
+<div id="modal-config" style="display:none">
+  <div class="modal-overlay" onclick="closeModal('modal-config')">
+    <div class="modal" onclick="event.stopPropagation()" style="width:500px;max-height:90vh;overflow-y:auto">
+      <div class="modal-title">⚙ Configuración del dashboard</div>
+      <div class="modal-sub" style="margin-bottom:16px">Personaliza el nombre y las etapas del proceso. Los cambios se aplican para todos.</div>
+
+      <div class="form-section">Nombre del dashboard</div>
+      <div class="form-row">
+        <label class="form-label">Nombre que aparece arriba del todo</label>
+        <input class="form-input" id="cfg-dashboard-name" placeholder="Ej: Onboarding Quadrante Meta Engineering">
+      </div>
+
+      <div class="form-section">Etapa 1</div>
+      <div class="form-row-2">
+        <div><label class="form-label">Nombre de la etapa</label>
+          <input class="form-input" id="cfg-e1-nombre" placeholder="Ej: Encuestas 45 días"></div>
+        <div><label class="form-label">Día objetivo</label>
+          <input class="form-input" type="number" id="cfg-e1-dias" placeholder="45" min="1" max="365"></div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Ventana de aviso — a partir del día</label>
+        <input class="form-input" type="number" id="cfg-e1-ventana" placeholder="24" min="1" max="365">
+        <div style="font-size:11px;color:#aaa;margin-top:4px">La etapa aparecerá en "Próximas acciones" desde este día hasta el día objetivo</div>
+      </div>
+
+      <div class="form-section">Etapa 2</div>
+      <div class="form-row-2">
+        <div><label class="form-label">Nombre de la etapa</label>
+          <input class="form-input" id="cfg-e2-nombre" placeholder="Ej: Reunión 2 meses"></div>
+        <div><label class="form-label">Día objetivo</label>
+          <input class="form-input" type="number" id="cfg-e2-dias" placeholder="60" min="1" max="365"></div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Ventana de aviso — a partir del día</label>
+        <input class="form-input" type="number" id="cfg-e2-ventana" placeholder="38" min="1" max="365">
+      </div>
+
+      <div class="form-section">Etapa 3</div>
+      <div class="form-row-2">
+        <div><label class="form-label">Nombre de la etapa</label>
+          <input class="form-input" id="cfg-e3-nombre" placeholder="Ej: Reunión 6 meses"></div>
+        <div><label class="form-label">Día objetivo</label>
+          <input class="form-input" type="number" id="cfg-e3-dias" placeholder="180" min="1" max="730"></div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Ventana de aviso — a partir del día</label>
+        <input class="form-input" type="number" id="cfg-e3-ventana" placeholder="150" min="1" max="730">
+      </div>
+
+      <div class="modal-btns" style="margin-top:20px">
+        <button class="btn" onclick="closeModal('modal-config')">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveConfig()">Guardar configuración</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </div>
 <script>
 // ============================================
@@ -360,11 +419,21 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 // ============================================
 // STATE
 // ============================================
-let db={dptos:[],people:[]};
+let db={dptos:[],people:[],config:null};
 let currentId=null,editingId=null,currentFilter='activos',currentDpto='todos';
 
+// Default config
+const DEFAULT_CONFIG={
+  dashboardName:'Dashboard Onboarding',
+  e1:{nombre:'Encuestas 45 días',dias:45,ventana:24},
+  e2:{nombre:'Reunión 2 meses',dias:60,ventana:38},
+  e3:{nombre:'Reunión 6 meses',dias:180,ventana:150}
+};
+function cfg(){return db.config||DEFAULT_CONFIG;}
+
 const DL=['Adaptación al puesto','Integración al equipo','Nivel de desempeño'];
-const EL=['Sin datos','45 días','Reunión 2M','6 meses'];
+const EL_DEFAULT=['Sin datos','45 días','Reunión 2M','6 meses'];
+function EL(){return['Sin datos',cfg().e1.nombre,cfg().e2.nombre,cfg().e3.nombre];}
 const AVC=['av-teal','av-purple','av-coral','av-blue','av-amber','av-pink'];
 const DIC=['background:#EEEDFE;color:#3C3489','background:#E1F5EE;color:#085041','background:#FAECE7;color:#712B13','background:#E6F1FB;color:#0C447C','background:#FAEEDA;color:#633806','background:#FBEAF0;color:#72243E'];
 
@@ -396,12 +465,22 @@ const RQS=[
 async function loadFromSupabase(){
   showLoading(true);
   try {
-    const [dptosRes, peopleRes] = await Promise.all([
+    const [dptosRes, peopleRes, configRes] = await Promise.all([
       sb.from('dptos').select('*').order('created_at'),
-      sb.from('people').select('*').order('created_at')
+      sb.from('people').select('*').order('created_at'),
+      sb.from('config').select('*').eq('id','main').single()
     ]);
     if(dptosRes.error) throw dptosRes.error;
     if(peopleRes.error) throw peopleRes.error;
+    if(configRes.data){
+      const r=configRes.data;
+      db.config={
+        dashboardName:r.dashboard_name||DEFAULT_CONFIG.dashboardName,
+        e1:{nombre:r.etapa1_nombre||DEFAULT_CONFIG.e1.nombre,dias:r.etapa1_dias||DEFAULT_CONFIG.e1.dias,ventana:r.etapa1_ventana_inicio||DEFAULT_CONFIG.e1.ventana},
+        e2:{nombre:r.etapa2_nombre||DEFAULT_CONFIG.e2.nombre,dias:r.etapa2_dias||DEFAULT_CONFIG.e2.dias,ventana:r.etapa2_ventana_inicio||DEFAULT_CONFIG.e2.ventana},
+        e3:{nombre:r.etapa3_nombre||DEFAULT_CONFIG.e3.nombre,dias:r.etapa3_dias||DEFAULT_CONFIG.e3.dias,ventana:r.etapa3_ventana_inicio||DEFAULT_CONFIG.e3.ventana}
+      };
+    }
 
     db.dptos = dptosRes.data.map(d=>({id:d.id,name:d.name}));
     db.people = peopleRes.data.map(rowToLocal);
@@ -645,9 +724,9 @@ function buildProxGrid(people){
       ${rows}</div>`;
   }
   return`<div class="prox-3col">
-    ${col('Encuestas · 45 días','Ventana: días 24–45',enc45Items)}
-    ${col('Reunión · 2 meses','Ventana: días 45–60',r2mItems)}
-    ${col('Reunión · 6 meses','Ventana: días 159–180',r6mItems)}
+    ${col(c.e1.nombre,`Ventana: días ${c.e1.ventana}–${c.e1.dias}`,enc45Items)}
+    ${col(c.e2.nombre,`Ventana: días ${c.e2.ventana}–${c.e2.dias}`,r2mItems)}
+    ${col(c.e3.nombre,`Ventana: días ${c.e3.ventana}–${c.e3.dias}`,r6mItems)}
   </div>`;
 }
 
@@ -661,6 +740,7 @@ function renderMain(){
   const medio=activos.filter(p=>calcRisk(p)==='Medio').length;
   const cerrados=todos.filter(p=>isOBCerrado(p)).length;
 
+  document.getElementById('dashboard-title').textContent=cfg().dashboardName;
   document.getElementById('main-sub').textContent=`${activos.length} incorporaciones activas · ${db.dptos.length} departamentos`;
 
   document.getElementById('summary-cards').innerHTML=`
@@ -794,7 +874,7 @@ function personCard(p){
     <div class="pright">
       ${isBaja?`<span class="badge b-baja">${p.baja}</span>`:
         isCerrado?`<span class="badge b-blue">6M completado</span>`:
-        `<span class="etapa-pill">${EL[p.etapa]}</span>
+        `<span class="etapa-pill">${EL()[p.etapa]}</span>
          <div class="dots">${personDots(p)}</div>
          <span class="badge ${rb(risk)}">${rl(risk)}</span>`}
       <span class="chevron">›</span>
@@ -1005,7 +1085,7 @@ function personCardReadOnly(p){
         <div><div style="font-weight:500">${p.name}</div><div style="font-size:12px;color:#888">${p.role} · ${dias} días</div></div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
-        <span class="etapa-pill">${EL[p.etapa]}</span>
+        <span class="etapa-pill">${EL()[p.etapa]}</span>
         <div class="dots">${personDots(p)}</div>
         <span class="badge ${rb(risk)}">${rl(risk)}</span>
         <span id="chev-${uid}" style="color:#aaa;font-size:16px">›</span>
@@ -1249,6 +1329,59 @@ function buildPrint(ppl){
       </div>
     </div>`;
   }).join('');
+}
+
+function openConfig(){
+  const c=cfg();
+  document.getElementById('cfg-dashboard-name').value=c.dashboardName;
+  document.getElementById('cfg-e1-nombre').value=c.e1.nombre;
+  document.getElementById('cfg-e1-dias').value=c.e1.dias;
+  document.getElementById('cfg-e1-ventana').value=c.e1.ventana;
+  document.getElementById('cfg-e2-nombre').value=c.e2.nombre;
+  document.getElementById('cfg-e2-dias').value=c.e2.dias;
+  document.getElementById('cfg-e2-ventana').value=c.e2.ventana;
+  document.getElementById('cfg-e3-nombre').value=c.e3.nombre;
+  document.getElementById('cfg-e3-dias').value=c.e3.dias;
+  document.getElementById('cfg-e3-ventana').value=c.e3.ventana;
+  document.getElementById('modal-config').style.display='block';
+}
+
+async function saveConfig(){
+  const newCfg={
+    dashboardName:document.getElementById('cfg-dashboard-name').value.trim()||DEFAULT_CONFIG.dashboardName,
+    e1:{
+      nombre:document.getElementById('cfg-e1-nombre').value.trim()||DEFAULT_CONFIG.e1.nombre,
+      dias:parseInt(document.getElementById('cfg-e1-dias').value)||DEFAULT_CONFIG.e1.dias,
+      ventana:parseInt(document.getElementById('cfg-e1-ventana').value)||DEFAULT_CONFIG.e1.ventana
+    },
+    e2:{
+      nombre:document.getElementById('cfg-e2-nombre').value.trim()||DEFAULT_CONFIG.e2.nombre,
+      dias:parseInt(document.getElementById('cfg-e2-dias').value)||DEFAULT_CONFIG.e2.dias,
+      ventana:parseInt(document.getElementById('cfg-e2-ventana').value)||DEFAULT_CONFIG.e2.ventana
+    },
+    e3:{
+      nombre:document.getElementById('cfg-e3-nombre').value.trim()||DEFAULT_CONFIG.e3.nombre,
+      dias:parseInt(document.getElementById('cfg-e3-dias').value)||DEFAULT_CONFIG.e3.dias,
+      ventana:parseInt(document.getElementById('cfg-e3-ventana').value)||DEFAULT_CONFIG.e3.ventana
+    }
+  };
+  showSaving(true);
+  const row={
+    id:'main',
+    dashboard_name:newCfg.dashboardName,
+    etapa1_nombre:newCfg.e1.nombre,etapa1_dias:newCfg.e1.dias,etapa1_ventana_inicio:newCfg.e1.ventana,
+    etapa2_nombre:newCfg.e2.nombre,etapa2_dias:newCfg.e2.dias,etapa2_ventana_inicio:newCfg.e2.ventana,
+    etapa3_nombre:newCfg.e3.nombre,etapa3_dias:newCfg.e3.dias,etapa3_ventana_inicio:newCfg.e3.ventana,
+    updated_at:new Date().toISOString()
+  };
+  const {error}=await sb.from('config').upsert(row);
+  if(error){console.error(error);alert('Error al guardar configuración.');}
+  else{
+    db.config=newCfg;
+    closeModal('modal-config');
+    renderMain();
+  }
+  showSaving(false,'¡Guardado!');
 }
 
 function manageDptos(){

@@ -896,13 +896,13 @@ function showDetail(id){
 function buildDetail(p){
   const dpto=db.dptos.find(d=>d.id===p.dptoId);
   const dias=calcDias(p.fechaInc),risk=calcRisk(p);
-  const steps=['Día 1','45 días','Reunión 2M','6 meses'];
+  const steps=['Día 1',cfg().e1.nombre,cfg().e2.nombre,cfg().e3.nombre];
   const prog=`<div class="prog-wrap"><div class="prog-track">${steps.map((_,i)=>`<div class="prog-step ${i<p.etapa?'ps-done':i===p.etapa?'ps-cur':'ps-pend'}"></div>`).join('')}</div><div class="prog-labs">${steps.map(s=>`<span>${s}</span>`).join('')}</div></div>`;
   const he45=p.e45&&p.e45.s&&p.e45.s.some(x=>x>0),hr45=p.r45&&p.r45.s&&p.r45.s.some(x=>x>0);
   let gapCard='';
   if(he45&&hr45){
     const ed=dimAvg(p.e45.s,EQS),rd=dimAvg(p.r45.s,RQS);
-    gapCard=`<div class="card"><div class="card-hdr"><span>GAP encuestas · 45 días</span><span style="font-size:12px;color:#aaa">empleado vs. responsable</span></div>
+    gapCard=`<div class="card"><div class="card-hdr"><span>GAP encuestas · ${cfg().e1.nombre}</span><span style="font-size:12px;color:#aaa">empleado vs. responsable</span></div>
       <div class="dim-grid">${DL.map((lbl,i)=>{
         const e=ed[i],r=rd[i];
         if(!e||!r)return`<div class="mcard"><div class="mlabel">${lbl}</div><div style="font-size:12px;color:#aaa">Sin datos</div></div>`;
@@ -929,8 +929,8 @@ function buildDetail(p){
   <div class="card"><div class="card-hdr"><span>Encuestas y reuniones</span></div>
     ${buildEncAcc('Encuesta empleado · 45 días',p.e45.s,EQS,{necApoyo:p.e45.necApoyo,ayudo:p.e45.ayudo,mejorar:p.e45.mejorar},true,he45)}
     ${buildEncAcc('Encuesta responsable · 45 días',p.r45.s,RQS,{mejora:p.r45.mejora,potencial:p.r45.potencial},false,hr45)}
-    ${buildReunionAcc('Reunión 2 meses',p.r2m,true)}
-    ${buildReunionAcc('Reunión 6 meses',p.r6,false)}
+    ${buildReunionAcc(cfg().e2.nombre,p.r2m,true)}
+    ${buildReunionAcc(cfg().e3.nombre,p.r6,false)}
   </div>
   <div class="card"><div class="card-hdr"><span>Valoración del responsable</span></div>
     <div class="rrow"><span class="rlabel">Nivel de riesgo</span>${rbadge}</div>
@@ -1069,7 +1069,7 @@ function personCardReadOnly(p){
         </div><div class="gap-tag ${gc.cls}">GAP ${gap>0?'+':''}${gap.toFixed(1)} · ${gc.lbl}</div></div>`;
     }).join('')}</div>`;
   }
-  const steps=['Día 1','45 días','Reunión 2M','6 meses'];
+  const steps=['Día 1',cfg().e1.nombre,cfg().e2.nombre,cfg().e3.nombre];
   const prog=`<div class="prog-wrap" style="margin-bottom:16px"><div class="prog-track">${steps.map((_,i)=>`<div class="prog-step ${i<p.etapa?'ps-done':i===p.etapa?'ps-cur':'ps-pend'}"></div>`).join('')}</div><div class="prog-labs">${steps.map(s=>`<span>${s}</span>`).join('')}</div></div>`;
   const potencial=p.r45&&p.r45.potencial;
   const potHtml=potencial?`<span class="${potencialCls(potencial)}">${potencial}</span>`:`<span style="font-size:12px;color:#aaa">—</span>`;
@@ -1099,13 +1099,13 @@ function personCardReadOnly(p){
       </div>
       ${obsResp?`<div class="infobox"><div class="infobox-label">Observaciones Generales y Recomendaciones</div>${obsResp}</div>`:`<div style="font-size:13px;color:#aaa;font-style:italic">Sin observaciones.</div>`}
       <div class="section-title" style="margin-top:14px">Voz del Empleado</div>
-      ${vozEmp?`<div class="infobox" style="border-left:3px solid #BA7517"><div class="infobox-label">Reunión 2M — cómo se siente con la adaptación</div>${vozEmp}</div>`:`<div style="font-size:13px;color:#aaa;font-style:italic">Sin registro.</div>`}
+      ${vozEmp?`<div class="infobox" style="border-left:3px solid #BA7517"><div class="infobox-label">${cfg().e2.nombre} — cómo se siente con la adaptación</div>${vozEmp}</div>`:`<div style="font-size:13px;color:#aaa;font-style:italic">Sin registro.</div>`}
       <div class="section-title" style="margin-top:14px">Áreas de mejora</div>${arH}
       <div class="section-title" style="margin-top:14px">Acciones recomendadas</div>${acH}
       <div class="section-title" style="margin-top:14px">Etapas del proceso</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div class="rrow"><span class="rlabel">Reunión 2M</span><span class="rs ${rsC(r2.estado)}">${rsL(r2.estado)}${r2.fecha?' · '+fmtDate(r2.fecha):''}</span></div>
-        <div class="rrow"><span class="rlabel">Reunión 6M</span><span class="rs ${rsC(r6h.estado)}">${rsL(r6h.estado)}${r6h.fecha?' · '+fmtDate(r6h.fecha):''}</span></div>
+        <div class="rrow"><span class="rlabel">${cfg().e2.nombre}</span><span class="rs ${rsC(r2.estado)}">${rsL(r2.estado)}${r2.fecha?' · '+fmtDate(r2.fecha):''}</span></div>
+        <div class="rrow"><span class="rlabel">${cfg().e3.nombre}</span><span class="rs ${rsC(r6h.estado)}">${rsL(r6h.estado)}${r6h.fecha?' · '+fmtDate(r6h.fecha):''}</span></div>
       </div>
     </div>
   </div>`;
@@ -1141,7 +1141,7 @@ function buildForm(p,defDpto){
   </div>
   <div class="form-row-2">
     <div><label class="form-label">Departamento</label><select class="form-input" id="f-dpto"><option value="">— Seleccionar —</option>${sel(dptoOpts,dId)}</select></div>
-    <div><label class="form-label">Etapa actual</label><select class="form-input" id="f-etapa">${sel([{v:0,l:'Sin datos'},{v:1,l:'45 días'},{v:2,l:'Reunión 2M'},{v:3,l:'6 meses'}],p?p.etapa:0)}</select></div>
+    <div><label class="form-label">Etapa actual</label><select class="form-input" id="f-etapa">${sel([{v:0,l:'Sin datos'},{v:1,l:cfg().e1.nombre},{v:2,l:cfg().e2.nombre},{v:3,l:cfg().e3.nombre}],p?p.etapa:0)}</select></div>
   </div>
   <div class="form-section">Plan de acción</div>
   <div id="areas-wrap">${(p?p.areas:[]).map((a,i)=>`<div class="form-row" id="ar-${i}" style="display:flex;gap:8px"><input class="form-input area-inp" value="${a}" style="flex:1"><button type="button" class="btn" onclick="document.getElementById('ar-${i}').remove()">×</button></div>`).join('')}</div>
@@ -1151,13 +1151,16 @@ function buildForm(p,defDpto){
 
   document.getElementById('ft-1').innerHTML=buildEncFormHtml('e45',EQS,p?p.e45:null,true);
   document.getElementById('ft-2').innerHTML=buildEncFormHtml('r45',RQS,p?p.r45:null,false);
-  document.getElementById('ft-3').innerHTML=buildReunionFormHtml('r2m',p?p.r2m:null,'Reunión 2 meses',true);
-  document.getElementById('ft-4').innerHTML=buildReunionFormHtml('r6m',p?p.r6:null,'Reunión 6 meses',false);
+  // Update tab labels dynamically
+  document.getElementById('ft3').textContent=cfg().e2.nombre;
+  document.getElementById('ft4').textContent=cfg().e3.nombre;
+  document.getElementById('ft-3').innerHTML=buildReunionFormHtml('r2m',p?p.r2m:null,cfg().e2.nombre,true);
+  document.getElementById('ft-4').innerHTML=buildReunionFormHtml('r6m',p?p.r6:null,cfg().e3.nombre,false);
 }
 
 function buildEncFormHtml(pfx,qs,data,isEmp){
   const scores=data&&data.s||[];
-  let h=`<div class="form-section">${isEmp?'Empleado':'Responsable'} · Encuesta 45 días</div>
+  let h=`<div class="form-section">${isEmp?'Empleado':'Responsable'} · ${cfg().e1.nombre}</div>
   <p style="font-size:12px;color:#888;margin-bottom:16px">Puntúa del 1 al 5</p>`;
   h+=qs.map((q,i)=>`
     <div class="form-row"><label class="form-label">${i+1}. ${q.t}</label>
@@ -1295,7 +1298,7 @@ function buildPrint(ppl){
   return ppl.map(p=>{
     const dpto=db.dptos.find(d=>d.id===p.dptoId);
     const dias=calcDias(p.fechaInc),risk=calcRisk(p);
-    const steps=['Día 1','45 días','Reunión 2M','6 meses'];
+    const steps=['Día 1',cfg().e1.nombre,cfg().e2.nombre,cfg().e3.nombre];
     const prog=`<div class="prog-wrap"><div class="prog-track">${steps.map((_,i)=>`<div class="prog-step ${i<p.etapa?'ps-done':i===p.etapa?'ps-cur':'ps-pend'}"></div>`).join('')}</div><div class="prog-labs">${steps.map(s=>`<span>${s}</span>`).join('')}</div></div>`;
     const he45=p.e45&&p.e45.s&&p.e45.s.some(x=>x>0),hr45=p.r45&&p.r45.s&&p.r45.s.some(x=>x>0);
     let gapHtml='';
@@ -1323,8 +1326,8 @@ function buildPrint(ppl){
         <div><div style="font-size:10px;font-weight:600;color:#aaa;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Áreas de mejora</div>${arH}
           <div style="font-size:10px;font-weight:600;color:#aaa;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px">Acciones</div>${acH}</div>
         <div><div style="font-size:10px;font-weight:600;color:#aaa;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Reuniones</div>
-          <div style="font-size:12px;margin-bottom:6px"><b>2M:</b> <span class="rs ${rsC(r2.estado)}">${rsL(r2.estado)}</span>${r2.fecha?' · '+fmtDate(r2.fecha):''}</div>
-          <div style="font-size:12px"><b>6M:</b> <span class="rs ${rsC(r6h.estado)}">${rsL(r6h.estado)}</span>${r6h.fecha?' · '+fmtDate(r6h.fecha):''}</div>
+          <div style="font-size:12px;margin-bottom:6px"><b>${cfg().e2.nombre}:</b> <span class="rs ${rsC(r2.estado)}">${rsL(r2.estado)}</span>${r2.fecha?' · '+fmtDate(r2.fecha):''}</div>
+          <div style="font-size:12px"><b>${cfg().e3.nombre}:</b> <span class="rs ${rsC(r6h.estado)}">${rsL(r6h.estado)}</span>${r6h.fecha?' · '+fmtDate(r6h.fecha):''}</div>
         </div>
       </div>
     </div>`;
